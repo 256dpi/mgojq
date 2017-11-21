@@ -81,6 +81,27 @@ func TestCollectionDequeue(t *testing.T) {
 	assert.Nil(t, job)
 }
 
+func TestCollectionDequeueFailed(t *testing.T) {
+	dbc := db.C("test-coll-dequeue-failed")
+	jqc := Wrap(dbc)
+
+	err := jqc.Enqueue("foo", bson.M{"bar": "baz"})
+	assert.NoError(t, err)
+
+	job, err := jqc.Dequeue("foo")
+	assert.NoError(t, err)
+	assert.True(t, job.ID.Valid())
+	assert.Equal(t, "foo", job.Name)
+	assert.Equal(t, bson.M{"bar": "baz"}, job.Params)
+
+	err = jqc.Fail(job.ID, "some error")
+	assert.NoError(t, err)
+
+	job2, err := jqc.Dequeue("foo")
+	assert.NoError(t, err)
+	assert.Equal(t, job, job2)
+}
+
 func TestCollectionDequeuePanic(t *testing.T) {
 	dbc := db.C("test-coll-dequeue")
 	jqc := Wrap(dbc)
