@@ -39,6 +39,8 @@ func (b *Bulk) Enqueue(name string, params bson.M) {
 	b.bulk.Insert(b.coll.insertJob(name, params))
 }
 
+// TODO: Add methods to dequeue, complete, fail and cancel many jobs at once.
+
 // Run will insert all queued insert operations.
 func (b *Bulk) Run() error {
 	_, err := b.bulk.Run()
