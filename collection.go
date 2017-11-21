@@ -20,6 +20,8 @@ const (
 
 // TODO: Dequeue lost jobs again after some time.
 
+// TODO: Dequeue old jobs first.
+
 // A Job as it is returned by Dequeue.
 type Job struct {
 	ID       bson.ObjectId `bson:"_id"`
@@ -85,7 +87,7 @@ func (c *Collection) insertJob(name string, params bson.M, delay time.Duration) 
 	}
 }
 
-// Dequeue will try to dequeue a job and return its id and params.
+// Dequeue will try to dequeue a job.
 func (c *Collection) Dequeue(names ...string) (*Job, error) {
 	// check names
 	if len(names) == 0 {
@@ -103,7 +105,7 @@ func (c *Collection) Dequeue(names ...string) (*Job, error) {
 		"delay": bson.M{
 			"$lte": time.Now(),
 		},
-	}).Apply(mgo.Change{
+	}).Sort("_id").Apply(mgo.Change{
 		Update: bson.M{
 			"$set": bson.M{
 				"status":  dequeued,
