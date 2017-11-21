@@ -24,7 +24,8 @@ func TestCollectionEnqueue(t *testing.T) {
 			"params": bson.M{
 				"bar": "baz",
 			},
-			"status": "enqueued",
+			"status":   "enqueued",
+			"attempts": 0,
 		},
 	}, data)
 }
@@ -51,14 +52,16 @@ func TestCollectionBulkEnqueue(t *testing.T) {
 			"params": bson.M{
 				"bar": 0,
 			},
-			"status": "enqueued",
+			"status":   "enqueued",
+			"attempts": 0,
 		},
 		{
 			"name": "foo",
 			"params": bson.M{
 				"bar": 1,
 			},
-			"status": "enqueued",
+			"status":   "enqueued",
+			"attempts": 0,
 		},
 	}, data)
 }
@@ -75,6 +78,7 @@ func TestCollectionDequeue(t *testing.T) {
 	assert.True(t, job.ID.Valid())
 	assert.Equal(t, "foo", job.Name)
 	assert.Equal(t, bson.M{"bar": "baz"}, job.Params)
+	assert.Equal(t, 1, job.Attempts)
 
 	job, err = jqc.Dequeue("foo")
 	assert.NoError(t, err)
@@ -93,13 +97,17 @@ func TestCollectionDequeueFailed(t *testing.T) {
 	assert.True(t, job.ID.Valid())
 	assert.Equal(t, "foo", job.Name)
 	assert.Equal(t, bson.M{"bar": "baz"}, job.Params)
+	assert.Equal(t, 1, job.Attempts)
 
 	err = jqc.Fail(job.ID, "some error")
 	assert.NoError(t, err)
 
 	job2, err := jqc.Dequeue("foo")
 	assert.NoError(t, err)
-	assert.Equal(t, job, job2)
+	assert.Equal(t, job.ID, job2.ID)
+	assert.Equal(t, "foo", job2.Name)
+	assert.Equal(t, bson.M{"bar": "baz"}, job2.Params)
+	assert.Equal(t, 2, job2.Attempts)
 }
 
 func TestCollectionDequeuePanic(t *testing.T) {

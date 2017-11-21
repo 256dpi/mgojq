@@ -16,15 +16,16 @@ const (
 	cancelled = "cancelled"
 )
 
-// TODO: Add retrying.
-// TODO: Add delaying.
+// TODO: Add retry timeout.
+// TODO: Add delay.
 // TODO: Add priorities.
 
 // A Job as it is returned by Dequeue.
 type Job struct {
-	ID     bson.ObjectId `bson:"_id"`
-	Name   string
-	Params bson.M
+	ID       bson.ObjectId `bson:"_id"`
+	Name     string
+	Params   bson.M
+	Attempts int
 }
 
 // A Bulk represents an operation that can be used to enqueue multiple jobs at
@@ -76,9 +77,10 @@ func (c *Collection) Bulk() *Bulk {
 
 func (c *Collection) insertJob(name string, params bson.M) bson.M {
 	return bson.M{
-		"name":   name,
-		"params": params,
-		"status": enqueued,
+		"name":     name,
+		"params":   params,
+		"status":   enqueued,
+		"attempts": 0,
 	}
 }
 
@@ -102,6 +104,9 @@ func (c *Collection) Dequeue(names ...string) (*Job, error) {
 			"$set": bson.M{
 				"status":  dequeued,
 				"started": time.Now(),
+			},
+			"$inc": bson.M{
+				"attempts": 1,
 			},
 		},
 		ReturnNew: true,
