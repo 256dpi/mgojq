@@ -113,38 +113,38 @@ func (c *Collection) Dequeue(names ...string) (*Job, error) {
 	return &job, nil
 }
 
-//// Complete will complete the specified job.
-//func (c *Collection) Complete(id bson.ObjectId, result bson.M) error {
-//	return c.coll.UpdateId(id, bson.M{
-//		"$set": bson.M{
-//			"status": completed,
-//			"result": result,
-//			"ended":  time.Now(),
-//		},
-//	})
-//}
-//
-//// Fail will fail the specified job.
-//func (c *Collection) Fail(id bson.ObjectId, error string) error {
-//	return c.coll.UpdateId(id, bson.M{
-//		"$set": bson.M{
-//			"status": failed,
-//			"error":  error,
-//			"ended":  time.Now(),
-//		},
-//	})
-//}
-//
-//// Cancel will cancel the specified job.
-//func (c *Collection) Cancel(id bson.ObjectId, reason string) error {
-//	return c.coll.UpdateId(id, bson.M{
-//		"$set": bson.M{
-//			"status": cancelled,
-//			"reason": reason,
-//			"ended":  time.Now(),
-//		},
-//	})
-//}
+// Complete will complete the specified job.
+func (c *Collection) Complete(id bson.ObjectId, result bson.M) error {
+	return c.coll.UpdateId(id, bson.M{
+		"$set": bson.M{
+			"status": completed,
+			"result": result,
+			"ended":  time.Now(),
+		},
+	})
+}
+
+// Fail will fail the specified job.
+func (c *Collection) Fail(id bson.ObjectId, error string) error {
+	return c.coll.UpdateId(id, bson.M{
+		"$set": bson.M{
+			"status": failed,
+			"error":  error,
+			"ended":  time.Now(),
+		},
+	})
+}
+
+// Cancel will cancel the specified job.
+func (c *Collection) Cancel(id bson.ObjectId, reason string) error {
+	return c.coll.UpdateId(id, bson.M{
+		"$set": bson.M{
+			"status": cancelled,
+			"reason": reason,
+			"ended":  time.Now(),
+		},
+	})
+}
 
 // EnsureIndexes will ensure that the necessary indexes have been created.
 //
@@ -153,8 +153,8 @@ func (c *Collection) Dequeue(names ...string) (*Job, error) {
 func (c *Collection) EnsureIndexes() error {
 	// ensure name index
 	err := c.coll.EnsureIndex(mgo.Index{
-		Key:         []string{"name"},
-		Background:  true,
+		Key:        []string{"name"},
+		Background: true,
 	})
 	if err != nil {
 		return err

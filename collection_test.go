@@ -90,6 +90,72 @@ func TestCollectionDequeuePanic(t *testing.T) {
 	})
 }
 
+func TestCollectionComplete(t *testing.T) {
+	dbc := db.C("test-coll-complete")
+	jqc := Wrap(dbc)
+
+	err := jqc.Enqueue("foo", bson.M{"bar": "baz"})
+	assert.NoError(t, err)
+
+	job, err := jqc.Dequeue("foo")
+	assert.NoError(t, err)
+	assert.NotNil(t, job)
+
+	err = jqc.Complete(job.ID, bson.M{"bar": "baz"})
+	assert.NoError(t, err)
+
+	var data bson.M
+	err = dbc.FindId(job.ID).Select(bson.M{"_id": 0}).One(&data)
+	assert.NoError(t, err)
+	assert.Equal(t, completed, data["status"])
+	assert.NotEmpty(t, data["ended"])
+	assert.Equal(t, bson.M{"bar": "baz"}, data["result"])
+}
+
+func TestCollectionFail(t *testing.T) {
+	dbc := db.C("test-coll-fail")
+	jqc := Wrap(dbc)
+
+	err := jqc.Enqueue("foo", bson.M{"bar": "baz"})
+	assert.NoError(t, err)
+
+	job, err := jqc.Dequeue("foo")
+	assert.NoError(t, err)
+	assert.NotNil(t, job)
+
+	err = jqc.Fail(job.ID, "some error")
+	assert.NoError(t, err)
+
+	var data bson.M
+	err = dbc.FindId(job.ID).Select(bson.M{"_id": 0}).One(&data)
+	assert.NoError(t, err)
+	assert.Equal(t, failed, data["status"])
+	assert.NotEmpty(t, data["ended"])
+	assert.Equal(t, "some error", data["error"])
+}
+
+func TestCollectionCancel(t *testing.T) {
+	dbc := db.C("test-coll-cancel")
+	jqc := Wrap(dbc)
+
+	err := jqc.Enqueue("foo", bson.M{"bar": "baz"})
+	assert.NoError(t, err)
+
+	job, err := jqc.Dequeue("foo")
+	assert.NoError(t, err)
+	assert.NotNil(t, job)
+
+	err = jqc.Cancel(job.ID, "some reason")
+	assert.NoError(t, err)
+
+	var data bson.M
+	err = dbc.FindId(job.ID).Select(bson.M{"_id": 0}).One(&data)
+	assert.NoError(t, err)
+	assert.Equal(t, cancelled, data["status"])
+	assert.NotEmpty(t, data["ended"])
+	assert.Equal(t, "some reason", data["reason"])
+}
+
 func TestCollectionEnsureIndexes(t *testing.T) {
 	dbc := db.C("test-coll-ensure-indexes")
 	jqc := Wrap(dbc)
