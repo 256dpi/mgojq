@@ -16,8 +16,6 @@ const (
 	cancelled = "cancelled"
 )
 
-// TODO: Add retry timeout.
-// TODO: Add delay.
 // TODO: Add priorities.
 
 // A Job as it is returned by Dequeue.
@@ -36,8 +34,8 @@ type Bulk struct {
 }
 
 // Enqueue will queue the insert in the bulk operation.
-func (b *Bulk) Enqueue(name string, params bson.M) {
-	b.bulk.Insert(b.coll.insertJob(name, params))
+func (b *Bulk) Enqueue(name string, params bson.M, delay time.Duration) {
+	b.bulk.Insert(b.coll.insertJob(name, params, delay))
 }
 
 // TODO: Add methods to dequeue, complete, fail and cancel many jobs at once.
@@ -62,8 +60,8 @@ func Wrap(coll *mgo.Collection) *Collection {
 }
 
 // Enqueue will immediately write the specified metrics to the collection.
-func (c *Collection) Enqueue(name string, params bson.M) error {
-	return c.coll.Insert(c.insertJob(name, params))
+func (c *Collection) Enqueue(name string, params bson.M, delay time.Duration) error {
+	return c.coll.Insert(c.insertJob(name, params, delay))
 }
 
 // Bulk will return a new bulk operation.
@@ -75,13 +73,13 @@ func (c *Collection) Bulk() *Bulk {
 	return &Bulk{coll: c, bulk: bulk}
 }
 
-func (c *Collection) insertJob(name string, params bson.M) bson.M {
+func (c *Collection) insertJob(name string, params bson.M, delay time.Duration) bson.M {
 	return bson.M{
 		"name":     name,
 		"params":   params,
 		"status":   enqueued,
 		"attempts": 0,
-		"delay":    time.Now(),
+		"delay":    time.Now().Add(delay),
 	}
 }
 
