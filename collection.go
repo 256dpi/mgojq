@@ -18,6 +18,8 @@ const (
 
 // TODO: Add priorities.
 
+// TODO: Dequeue lost jobs again after some time.
+
 // A Job as it is returned by Dequeue.
 type Job struct {
 	ID       bson.ObjectId `bson:"_id"`
