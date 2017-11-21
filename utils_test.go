@@ -1,6 +1,8 @@
 package mgojq
 
 import (
+	"time"
+
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -28,4 +30,28 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+}
+
+var setTime = time.Now()
+
+func replaceTimeSlice(s []bson.M) []bson.M {
+	for _, m := range s {
+		replaceTimeMap(m)
+	}
+
+	return s
+}
+
+func replaceTimeMap(m bson.M) bson.M {
+	for key, value := range m {
+		if v, ok := value.(bson.M); ok {
+			replaceTimeMap(v)
+		} else if v, ok := value.([]bson.M); ok {
+			replaceTimeSlice(v)
+		} else if v, ok := value.(time.Time); ok && !v.IsZero() {
+			m[key] = setTime
+		}
+	}
+
+	return m
 }

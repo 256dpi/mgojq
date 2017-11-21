@@ -81,6 +81,7 @@ func (c *Collection) insertJob(name string, params bson.M) bson.M {
 		"params":   params,
 		"status":   enqueued,
 		"attempts": 0,
+		"delay":    time.Now(),
 	}
 }
 
@@ -98,6 +99,9 @@ func (c *Collection) Dequeue(names ...string) (*Job, error) {
 		},
 		"status": bson.M{
 			"$in": []string{enqueued, failed},
+		},
+		"delay": bson.M{
+			"$lte": time.Now(),
 		},
 	}).Apply(mgo.Change{
 		Update: bson.M{
@@ -132,12 +136,13 @@ func (c *Collection) Complete(id bson.ObjectId, result bson.M) error {
 }
 
 // Fail will fail the specified job.
-func (c *Collection) Fail(id bson.ObjectId, error string) error {
+func (c *Collection) Fail(id bson.ObjectId, error string, delay time.Duration) error {
 	return c.coll.UpdateId(id, bson.M{
 		"$set": bson.M{
 			"status": failed,
 			"error":  error,
 			"ended":  time.Now(),
+			"delay":  time.Now().Add(delay),
 		},
 	})
 }
