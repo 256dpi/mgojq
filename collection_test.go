@@ -74,7 +74,7 @@ func TestCollectionDequeue(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, job.ID.Valid())
 	assert.Equal(t, "foo", job.Name)
-	assert.Equal(t, dequeued, job.Status)
+	assert.Equal(t, bson.M{"bar": "baz"}, job.Params)
 
 	job, err = jqc.Dequeue("foo")
 	assert.NoError(t, err)

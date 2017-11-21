@@ -24,7 +24,7 @@ const (
 type Job struct {
 	ID     bson.ObjectId `bson:"_id"`
 	Name   string
-	Status string
+	Params bson.M
 }
 
 // A Bulk represents an operation that can be used to enqueue multiple jobs at
