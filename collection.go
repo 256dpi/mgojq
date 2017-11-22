@@ -42,7 +42,20 @@ func (b *Bulk) Enqueue(name string, params bson.M, delay time.Duration) {
 	b.bulk.Insert(b.coll.insertJob(name, params, delay))
 }
 
-// TODO: Add methods to dequeue, complete, fail and cancel many jobs at once.
+// Complete will queue the complete in the bulk operation.
+func (b *Bulk) Complete(id bson.ObjectId, result bson.M) {
+	b.bulk.Update(bson.M{"_id": id}, b.coll.completeJob(result))
+}
+
+// Fail will queue the fail in the bulk operation.
+func (b *Bulk) Fail(id bson.ObjectId, error string, delay time.Duration) {
+	b.bulk.Update(bson.M{"_id": id}, b.coll.failJob(error, delay))
+}
+
+// Cancel will queue the cancel in the bulk operation.
+func (b *Bulk) Cancel(id bson.ObjectId, reason string) {
+	b.bulk.Update(bson.M{"_id": id}, b.coll.cancelJob(reason))
+}
 
 // Run will insert all queued insert operations.
 func (b *Bulk) Run() error {
@@ -68,15 +81,6 @@ func (c *Collection) Enqueue(name string, params bson.M, delay time.Duration) er
 	return c.coll.Insert(c.insertJob(name, params, delay))
 }
 
-// Bulk will return a new bulk operation.
-func (c *Collection) Bulk() *Bulk {
-	// create new bulk operation
-	bulk := c.coll.Bulk()
-	bulk.Unordered()
-
-	return &Bulk{coll: c, bulk: bulk}
-}
-
 func (c *Collection) insertJob(name string, params bson.M, delay time.Duration) bson.M {
 	return bson.M{
 		"name":     name,
@@ -85,6 +89,15 @@ func (c *Collection) insertJob(name string, params bson.M, delay time.Duration) 
 		"attempts": 0,
 		"delay":    time.Now().Add(delay),
 	}
+}
+
+// Bulk will return a new bulk operation.
+func (c *Collection) Bulk() *Bulk {
+	// create new bulk operation
+	bulk := c.coll.Bulk()
+	bulk.Unordered()
+
+	return &Bulk{coll: c, bulk: bulk}
 }
 
 // Dequeue will try to dequeue a job.
@@ -128,36 +141,48 @@ func (c *Collection) Dequeue(names ...string) (*Job, error) {
 
 // Complete will complete the specified job.
 func (c *Collection) Complete(id bson.ObjectId, result bson.M) error {
-	return c.coll.UpdateId(id, bson.M{
+	return c.coll.UpdateId(id, c.completeJob(result))
+}
+
+func (c *Collection) completeJob(result bson.M) bson.M {
+	return bson.M{
 		"$set": bson.M{
 			"status": completed,
 			"result": result,
 			"ended":  time.Now(),
 		},
-	})
+	}
 }
 
 // Fail will fail the specified job.
 func (c *Collection) Fail(id bson.ObjectId, error string, delay time.Duration) error {
-	return c.coll.UpdateId(id, bson.M{
+	return c.coll.UpdateId(id, c.failJob(error, delay))
+}
+
+func (c *Collection) failJob(error string, delay time.Duration) bson.M {
+	return bson.M{
 		"$set": bson.M{
 			"status": failed,
 			"error":  error,
 			"ended":  time.Now(),
 			"delay":  time.Now().Add(delay),
 		},
-	})
+	}
 }
 
 // Cancel will cancel the specified job.
 func (c *Collection) Cancel(id bson.ObjectId, reason string) error {
-	return c.coll.UpdateId(id, bson.M{
+	return c.coll.UpdateId(id, c.cancelJob(reason))
+}
+
+func (c *Collection) cancelJob(reason string) bson.M {
+	return bson.M{
 		"$set": bson.M{
 			"status": cancelled,
 			"reason": reason,
 			"ended":  time.Now(),
 		},
-	})
+	}
 }
 
 // EnsureIndexes will ensure that the necessary indexes have been created.
