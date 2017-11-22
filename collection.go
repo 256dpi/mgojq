@@ -34,9 +34,27 @@ type Job struct {
 	// The time when the job was created.
 	Created time.Time
 
+	// The time until the job is delayed for execution.
+	Delayed time.Time `bson:",omitempty"`
+
+	// The time when the job was the last time dequeued.
+	Started time.Time `bson:",omitempty"`
+
+	// The time when the job was ended (completed, failed or cancelled).
+	Ended time.Time `bson:",omitempty"`
+
 	// Attempts can be used to determine if a job should be cancelled after too
 	// many attempts.
 	Attempts int
+
+	// The supplied result submitted during completion.
+	Result bson.M `bson:",omitempty"`
+
+	// The error from the last failed attempt.
+	Error string `bson:",omitempty"`
+
+	// The reason that has been submitted when job was cancelled.
+	Reason string `bson:",omitempty"`
 }
 
 // A Bulk represents an operation that can be used to enqueue multiple jobs at
@@ -96,17 +114,16 @@ func (c *Collection) Enqueue(name string, params bson.M, delay time.Duration) (b
 	return id, c.coll.Insert(doc)
 }
 
-func (c *Collection) insertJob(name string, params bson.M, delay time.Duration) (bson.ObjectId, bson.M) {
+func (c *Collection) insertJob(name string, params bson.M, delay time.Duration) (bson.ObjectId, *Job) {
 	id := bson.NewObjectId()
 
-	return id, bson.M{
-		"_id":      id,
-		"name":     name,
-		"params":   params,
-		"status":   StatusEnqueued,
-		"attempts": 0,
-		"created":  time.Now(),
-		"delay":    time.Now().Add(delay),
+	return id, &Job{
+		ID:      id,
+		Name:    name,
+		Params:  params,
+		Status:  StatusEnqueued,
+		Created: time.Now(),
+		Delayed: time.Now().Add(delay),
 	}
 }
 
@@ -136,7 +153,7 @@ func (c *Collection) Dequeue(names []string, timeout time.Duration) (*Job, error
 				"status": bson.M{
 					"$in": []string{StatusEnqueued, StatusFailed},
 				},
-				"delay": bson.M{
+				"delayed": bson.M{
 					"$lte": time.Now(),
 				},
 			},
@@ -198,10 +215,10 @@ func (c *Collection) Fail(id bson.ObjectId, error string, delay time.Duration) e
 func (c *Collection) failJob(error string, delay time.Duration) bson.M {
 	return bson.M{
 		"$set": bson.M{
-			"status": StatusFailed,
-			"error":  error,
-			"ended":  time.Now(),
-			"delay":  time.Now().Add(delay),
+			"status":  StatusFailed,
+			"error":   error,
+			"ended":   time.Now(),
+			"delayed": time.Now().Add(delay),
 		},
 	}
 }

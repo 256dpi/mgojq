@@ -28,7 +28,7 @@ func TestCollectionEnqueue(t *testing.T) {
 			"status":   "enqueued",
 			"attempts": 0,
 			"created":  setTime,
-			"delay":    setTime,
+			"delayed":  setTime,
 		},
 	}, replaceTimeSlice(data))
 }
@@ -71,7 +71,7 @@ func TestCollectionBulk(t *testing.T) {
 			"status":   "completed",
 			"attempts": 0,
 			"created":  setTime,
-			"delay":    setTime,
+			"delayed":  setTime,
 			"ended":    setTime,
 			"result":   bson.M{"bar": "bar"},
 		},
@@ -83,7 +83,7 @@ func TestCollectionBulk(t *testing.T) {
 			"status":   "failed",
 			"attempts": 0,
 			"created":  setTime,
-			"delay":    setTime,
+			"delayed":  setTime,
 			"ended":    setTime,
 			"error":    "some error",
 		},
@@ -95,7 +95,7 @@ func TestCollectionBulk(t *testing.T) {
 			"status":   "cancelled",
 			"attempts": 0,
 			"created":  setTime,
-			"delay":    setTime,
+			"delayed":  setTime,
 			"ended":    setTime,
 			"reason":   "some reason",
 		},
@@ -112,7 +112,7 @@ func TestCollectionFetch(t *testing.T) {
 	job, err := jqc.Dequeue([]string{"foo"}, 0)
 	assert.NoError(t, err)
 
-	err = jqc.Complete(id, nil)
+	err = jqc.Complete(id, bson.M{"bar": "baz"})
 	assert.NoError(t, err)
 
 	job, err = jqc.Fetch(id)
@@ -123,6 +123,10 @@ func TestCollectionFetch(t *testing.T) {
 		Params:   bson.M{"bar": "baz"},
 		Status:   StatusCompleted,
 		Created:  setTime,
+		Delayed:  setTime,
+		Started:  setTime,
+		Ended:    setTime,
+		Result:   bson.M{"bar": "baz"},
 		Attempts: 1,
 	}, replaceTimeJob(job))
 }
@@ -310,7 +314,7 @@ func TestCollectionComplete(t *testing.T) {
 		},
 		"status":   "completed",
 		"created":  setTime,
-		"delay":    setTime,
+		"delayed":  setTime,
 		"attempts": 1,
 		"started":  setTime,
 		"result": bson.M{
@@ -344,7 +348,7 @@ func TestCollectionFail(t *testing.T) {
 		},
 		"status":   "failed",
 		"created":  setTime,
-		"delay":    setTime,
+		"delayed":  setTime,
 		"attempts": 1,
 		"started":  setTime,
 		"error":    "some error",
@@ -376,7 +380,7 @@ func TestCollectionCancel(t *testing.T) {
 		},
 		"status":   "cancelled",
 		"created":  setTime,
-		"delay":    setTime,
+		"delayed":  setTime,
 		"attempts": 1,
 		"started":  setTime,
 		"reason":   "some reason",

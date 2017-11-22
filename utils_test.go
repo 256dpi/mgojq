@@ -61,5 +61,17 @@ func replaceTimeJob(j *Job) *Job {
 		j.Created = setTime
 	}
 
+	if !j.Delayed.IsZero() {
+		j.Delayed = setTime
+	}
+
+	if !j.Started.IsZero() {
+		j.Started = setTime
+	}
+
+	if !j.Ended.IsZero() {
+		j.Ended = setTime
+	}
+
 	return j
 }
