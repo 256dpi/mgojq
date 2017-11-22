@@ -150,8 +150,8 @@ func TestCollectionDequeue(t *testing.T) {
 	assert.Nil(t, job)
 }
 
-func TestCollectionDequeueDelay(t *testing.T) {
-	dbc := db.C("test-coll-dequeue-delay")
+func TestCollectionDequeueDelayed(t *testing.T) {
+	dbc := db.C("test-coll-dequeue-delayed")
 	jqc := Wrap(dbc)
 
 	_, err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 100*time.Millisecond)
@@ -250,8 +250,8 @@ func TestCollectionDequeueFailed(t *testing.T) {
 	assert.Equal(t, 2, job2.Attempts)
 }
 
-func TestCollectionDequeueFailedDelay(t *testing.T) {
-	dbc := db.C("test-coll-dequeue-failed-delay")
+func TestCollectionDequeueFailedDelayed(t *testing.T) {
+	dbc := db.C("test-coll-dequeue-failed-delayed")
 	jqc := Wrap(dbc)
 
 	_, err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
