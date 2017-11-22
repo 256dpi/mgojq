@@ -27,6 +27,7 @@ func TestCollectionEnqueue(t *testing.T) {
 			},
 			"status":   "enqueued",
 			"attempts": 0,
+			"created":  setTime,
 			"delay":    setTime,
 		},
 	}, replaceTimeSlice(data))
@@ -69,6 +70,7 @@ func TestCollectionBulk(t *testing.T) {
 			},
 			"status":   "completed",
 			"attempts": 0,
+			"created":  setTime,
 			"delay":    setTime,
 			"ended":    setTime,
 			"result":   bson.M{"bar": "bar"},
@@ -80,6 +82,7 @@ func TestCollectionBulk(t *testing.T) {
 			},
 			"status":   "failed",
 			"attempts": 0,
+			"created":  setTime,
 			"delay":    setTime,
 			"ended":    setTime,
 			"error":    "some error",
@@ -91,6 +94,7 @@ func TestCollectionBulk(t *testing.T) {
 			},
 			"status":   "cancelled",
 			"attempts": 0,
+			"created":  setTime,
 			"delay":    setTime,
 			"ended":    setTime,
 			"reason":   "some reason",
@@ -153,7 +157,7 @@ func TestCollectionDequeueTimeout(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, job)
 
-	job, err = jqc.Dequeue([]string{"foo"}, 100 * time.Millisecond)
+	job, err = jqc.Dequeue([]string{"foo"}, 100*time.Millisecond)
 	assert.NoError(t, err)
 	assert.Nil(t, job)
 
@@ -280,6 +284,7 @@ func TestCollectionComplete(t *testing.T) {
 			"bar": "baz",
 		},
 		"status":   "completed",
+		"created":  setTime,
 		"delay":    setTime,
 		"attempts": 1,
 		"started":  setTime,
@@ -313,6 +318,7 @@ func TestCollectionFail(t *testing.T) {
 			"bar": "baz",
 		},
 		"status":   "failed",
+		"created":  setTime,
 		"delay":    setTime,
 		"attempts": 1,
 		"started":  setTime,
@@ -344,6 +350,7 @@ func TestCollectionCancel(t *testing.T) {
 			"bar": "baz",
 		},
 		"status":   "cancelled",
+		"created":  setTime,
 		"delay":    setTime,
 		"attempts": 1,
 		"started":  setTime,

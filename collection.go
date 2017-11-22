@@ -21,6 +21,7 @@ type Job struct {
 	ID       bson.ObjectId `bson:"_id"`
 	Name     string
 	Params   bson.M
+	Created  time.Time
 	Attempts int
 }
 
@@ -81,6 +82,7 @@ func (c *Collection) insertJob(name string, params bson.M, delay time.Duration) 
 		"params":   params,
 		"status":   enqueued,
 		"attempts": 0,
+		"created":  time.Now(),
 		"delay":    time.Now().Add(delay),
 	}
 }

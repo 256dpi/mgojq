@@ -30,7 +30,7 @@ type Pool struct {
 func NewPool(size int, interval, timeout time.Duration) *Pool {
 	return &Pool{
 		interval: interval,
-		timeout: timeout,
+		timeout:  timeout,
 		size:     size,
 		workers:  make(map[string]Worker),
 		jobs:     make(chan *Job),
