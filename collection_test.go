@@ -140,7 +140,7 @@ func TestCollectionDequeueFailed(t *testing.T) {
 }
 
 func TestCollectionDequeueFailedDelay(t *testing.T) {
-	dbc := db.C("test-coll-dequeue-failed")
+	dbc := db.C("test-coll-dequeue-failed-delay")
 	jqc := Wrap(dbc)
 
 	err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
@@ -171,7 +171,7 @@ func TestCollectionDequeueFailedDelay(t *testing.T) {
 }
 
 func TestCollectionDequeuePanic(t *testing.T) {
-	dbc := db.C("test-coll-dequeue")
+	dbc := db.C("test-coll-dequeue-panic")
 	jqc := Wrap(dbc)
 
 	assert.Panics(t, func() {

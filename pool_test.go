@@ -61,6 +61,33 @@ func TestPoolParallel(t *testing.T) {
 	assert.Equal(t, 10, counter)
 }
 
+func TestPoolWait(t *testing.T) {
+	dbc := db.C("test-pool-wait")
+	jqc := Wrap(dbc)
+
+	counter := 0
+
+	pool := NewPool(1, 100 * time.Millisecond)
+	pool.Register("foo", func(c *Collection, j *Job, quit <-chan struct{}) error {
+		counter++
+		c.Complete(j.ID, nil)
+		return nil
+	})
+
+	pool.Start(jqc)
+
+	time.Sleep(50 * time.Millisecond)
+	jqc.Enqueue("foo", nil, 0)
+	time.Sleep(50 * time.Millisecond)
+	jqc.Enqueue("foo", nil, 0)
+	time.Sleep(115 * time.Millisecond)
+
+	pool.Close()
+	assert.NoError(t, pool.Wait())
+
+	assert.Equal(t, 2, counter)
+}
+
 func TestPoolError(t *testing.T) {
 	dbc := db.C("test-pool-error")
 	jqc := Wrap(dbc)
