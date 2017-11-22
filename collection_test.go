@@ -392,6 +392,6 @@ func TestCollectionEnsureIndexes(t *testing.T) {
 	dbc := db.C("test-coll-ensure-indexes")
 	jqc := Wrap(dbc)
 
-	assert.NoError(t, jqc.EnsureIndexes())
-	assert.NoError(t, jqc.EnsureIndexes())
+	assert.NoError(t, jqc.EnsureIndexes(7 * 24 * time.Hour))
+	assert.NoError(t, jqc.EnsureIndexes(7 * 24 * time.Hour))
 }

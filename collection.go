@@ -238,11 +238,14 @@ func (c *Collection) cancelJob(reason string) bson.M {
 	}
 }
 
-// EnsureIndexes will ensure that the necessary indexes have been created.
+// EnsureIndexes will ensure that the necessary indexes have been created. If
+// removeAfter is specified, jobs are automatically removed when their ended
+// timestamp falls behind the specified duration. Warning: this also applies
+// to failed jobs!
 //
 // Note: It is recommended to create custom indexes that support the exact
 // nature of data and access patterns.
-func (c *Collection) EnsureIndexes() error {
+func (c *Collection) EnsureIndexes(removeAfter time.Duration) error {
 	// ensure name index
 	err := c.coll.EnsureIndex(mgo.Index{
 		Key:        []string{"name"},
@@ -256,6 +259,16 @@ func (c *Collection) EnsureIndexes() error {
 	err = c.coll.EnsureIndex(mgo.Index{
 		Key:        []string{"status"},
 		Background: true,
+	})
+	if err != nil {
+		return err
+	}
+
+	// ensure ended index
+	err = c.coll.EnsureIndex(mgo.Index{
+		Key:         []string{"ended"},
+		ExpireAfter: removeAfter,
+		Background:  true,
 	})
 	if err != nil {
 		return err

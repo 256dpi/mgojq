@@ -15,7 +15,7 @@
 coll := Wrap(db.C("jobs"))
 
 // ensure indexes
-err := coll.EnsureIndexes()
+err := coll.EnsureIndexes(7 * 24 * time.Hour)
 if err != nil {
     panic(err)
 }
