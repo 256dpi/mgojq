@@ -67,7 +67,7 @@ func TestPoolWait(t *testing.T) {
 
 	counter := 0
 
-	pool := NewPool(1, 100 * time.Millisecond)
+	pool := NewPool(1, 100*time.Millisecond)
 	pool.Register("foo", func(c *Collection, j *Job, quit <-chan struct{}) error {
 		counter++
 		c.Complete(j.ID, nil)

@@ -32,16 +32,29 @@ func TestCollectionEnqueue(t *testing.T) {
 	}, replaceTimeSlice(data))
 }
 
-func TestCollectionBulkEnqueue(t *testing.T) {
-	dbc := db.C("test-coll-bulk-enqueue")
+func TestCollectionBulk(t *testing.T) {
+	dbc := db.C("test-coll-bulk")
 	jqc := Wrap(dbc)
-	bulk := jqc.Bulk()
 
-	for i := 0; i < 2; i++ {
-		bulk.Enqueue("foo", bson.M{"bar": i}, 0)
-	}
+	bulk := jqc.Bulk()
+	bulk.Enqueue("foo1", bson.M{"bar": 1}, 0)
+	bulk.Enqueue("foo2", bson.M{"bar": 2}, 0)
+	bulk.Enqueue("foo3", bson.M{"bar": 3}, 0)
 
 	err := bulk.Run()
+	assert.NoError(t, err)
+
+	var ids []bson.ObjectId
+	err = dbc.Find(nil).Distinct("_id", &ids)
+	assert.NoError(t, err)
+	assert.Len(t, ids, 3)
+
+	bulk = jqc.Bulk()
+	bulk.Complete(ids[0], bson.M{"bar": "bar"})
+	bulk.Fail(ids[1], "some error", 0)
+	bulk.Cancel(ids[2], "some reason")
+
+	err = bulk.Run()
 	assert.NoError(t, err)
 
 	var data []bson.M
@@ -50,22 +63,37 @@ func TestCollectionBulkEnqueue(t *testing.T) {
 
 	assert.Equal(t, []bson.M{
 		{
-			"name": "foo",
-			"params": bson.M{
-				"bar": 0,
-			},
-			"status":   "enqueued",
-			"attempts": 0,
-			"delay":    setTime,
-		},
-		{
-			"name": "foo",
+			"name": "foo1",
 			"params": bson.M{
 				"bar": 1,
 			},
-			"status":   "enqueued",
+			"status":   "completed",
 			"attempts": 0,
 			"delay":    setTime,
+			"ended":    setTime,
+			"result":   bson.M{"bar": "bar"},
+		},
+		{
+			"name": "foo2",
+			"params": bson.M{
+				"bar": 2,
+			},
+			"status":   "failed",
+			"attempts": 0,
+			"delay":    setTime,
+			"ended":    setTime,
+			"error":    "some error",
+		},
+		{
+			"name": "foo3",
+			"params": bson.M{
+				"bar": 3,
+			},
+			"status":   "cancelled",
+			"attempts": 0,
+			"delay":    setTime,
+			"ended":    setTime,
+			"reason":   "some reason",
 		},
 	}, replaceTimeSlice(data))
 }
