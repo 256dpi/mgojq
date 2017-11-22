@@ -12,7 +12,7 @@ func TestCollectionEnqueue(t *testing.T) {
 	dbc := db.C("test-coll-enqueue")
 	jqc := Wrap(dbc)
 
-	err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
+	_, err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
 	assert.NoError(t, err)
 
 	var data []bson.M
@@ -102,11 +102,36 @@ func TestCollectionBulk(t *testing.T) {
 	}, replaceTimeSlice(data))
 }
 
+func TestCollectionFetch(t *testing.T) {
+	dbc := db.C("test-coll-fetch")
+	jqc := Wrap(dbc)
+
+	id, err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
+	assert.NoError(t, err)
+
+	job, err := jqc.Dequeue([]string{"foo"}, 0)
+	assert.NoError(t, err)
+
+	err = jqc.Complete(id, nil)
+	assert.NoError(t, err)
+
+	job, err = jqc.Fetch(id)
+	assert.NoError(t, err)
+	assert.Equal(t, &Job{
+		ID:       id,
+		Name:     "foo",
+		Params:   bson.M{"bar": "baz"},
+		Status:   StatusCompleted,
+		Created:  setTime,
+		Attempts: 1,
+	}, replaceTimeJob(job))
+}
+
 func TestCollectionDequeue(t *testing.T) {
 	dbc := db.C("test-coll-dequeue")
 	jqc := Wrap(dbc)
 
-	err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
+	_, err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
 	assert.NoError(t, err)
 
 	job, err := jqc.Dequeue([]string{"foo"}, time.Hour)
@@ -125,7 +150,7 @@ func TestCollectionDequeueDelay(t *testing.T) {
 	dbc := db.C("test-coll-dequeue-delay")
 	jqc := Wrap(dbc)
 
-	err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 100*time.Millisecond)
+	_, err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 100*time.Millisecond)
 	assert.NoError(t, err)
 
 	job, err := jqc.Dequeue([]string{"foo"}, time.Hour)
@@ -150,7 +175,7 @@ func TestCollectionDequeueTimeout(t *testing.T) {
 	dbc := db.C("test-coll-dequeue-timeout")
 	jqc := Wrap(dbc)
 
-	err := jqc.Enqueue("foo", nil, 0)
+	_, err := jqc.Enqueue("foo", nil, 0)
 	assert.NoError(t, err)
 
 	job, err := jqc.Dequeue([]string{"foo"}, 0)
@@ -170,7 +195,7 @@ func TestCollectionDequeueOldFirst(t *testing.T) {
 	dbc := db.C("test-coll-dequeue-old-first")
 	jqc := Wrap(dbc)
 
-	err := jqc.Enqueue("foo", bson.M{"first": true}, 0)
+	_, err := jqc.Enqueue("foo", bson.M{"first": true}, 0)
 	assert.NoError(t, err)
 
 	job, err := jqc.Dequeue([]string{"foo"}, time.Hour)
@@ -180,7 +205,7 @@ func TestCollectionDequeueOldFirst(t *testing.T) {
 	err = jqc.Fail(job.ID, "some error", 0)
 	assert.NoError(t, err)
 
-	err = jqc.Enqueue("foo", bson.M{"second": true}, 0)
+	_, err = jqc.Enqueue("foo", bson.M{"second": true}, 0)
 	assert.NoError(t, err)
 
 	job, err = jqc.Dequeue([]string{"foo"}, time.Hour)
@@ -200,7 +225,7 @@ func TestCollectionDequeueFailed(t *testing.T) {
 	dbc := db.C("test-coll-dequeue-failed")
 	jqc := Wrap(dbc)
 
-	err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
+	_, err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
 	assert.NoError(t, err)
 
 	job, err := jqc.Dequeue([]string{"foo"}, time.Hour)
@@ -225,7 +250,7 @@ func TestCollectionDequeueFailedDelay(t *testing.T) {
 	dbc := db.C("test-coll-dequeue-failed-delay")
 	jqc := Wrap(dbc)
 
-	err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
+	_, err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
 	assert.NoError(t, err)
 
 	job, err := jqc.Dequeue([]string{"foo"}, time.Hour)
@@ -265,7 +290,7 @@ func TestCollectionComplete(t *testing.T) {
 	dbc := db.C("test-coll-complete")
 	jqc := Wrap(dbc)
 
-	err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
+	_, err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
 	assert.NoError(t, err)
 
 	job, err := jqc.Dequeue([]string{"foo"}, time.Hour)
@@ -299,7 +324,7 @@ func TestCollectionFail(t *testing.T) {
 	dbc := db.C("test-coll-fail")
 	jqc := Wrap(dbc)
 
-	err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
+	_, err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
 	assert.NoError(t, err)
 
 	job, err := jqc.Dequeue([]string{"foo"}, time.Hour)
@@ -331,7 +356,7 @@ func TestCollectionCancel(t *testing.T) {
 	dbc := db.C("test-coll-cancel")
 	jqc := Wrap(dbc)
 
-	err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
+	_, err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
 	assert.NoError(t, err)
 
 	job, err := jqc.Dequeue([]string{"foo"}, time.Hour)

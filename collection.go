@@ -8,20 +8,34 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
+// The available job statuses.
 const (
-	enqueued  = "enqueued"
-	dequeued  = "dequeued"
-	completed = "completed"
-	failed    = "failed"
-	cancelled = "cancelled"
+	StatusEnqueued  = "enqueued"
+	StatusDequeued  = "dequeued"
+	StatusCompleted = "completed"
+	StatusFailed    = "failed"
+	StatusCancelled = "cancelled"
 )
 
 // A Job as it is returned by Dequeue.
 type Job struct {
-	ID       bson.ObjectId `bson:"_id"`
-	Name     string
-	Params   bson.M
-	Created  time.Time
+	// The unique id of the job.
+	ID bson.ObjectId `bson:"_id"`
+
+	// The name of the job.
+	Name string
+
+	// The params that have been supplied on creation.
+	Params bson.M
+
+	// The current status of the job.
+	Status string
+
+	// The time when the job was created.
+	Created time.Time
+
+	// Attempts can be used to determine if a job should be cancelled after too
+	// many attempts.
 	Attempts int
 }
 
@@ -32,9 +46,12 @@ type Bulk struct {
 	bulk *mgo.Bulk
 }
 
-// Enqueue will queue the insert in the bulk operation.
-func (b *Bulk) Enqueue(name string, params bson.M, delay time.Duration) {
-	b.bulk.Insert(b.coll.insertJob(name, params, delay))
+// Enqueue will queue the insert in the bulk operation. The returned id is only
+// valid if the bulk operation run successfully,.
+func (b *Bulk) Enqueue(name string, params bson.M, delay time.Duration) bson.ObjectId {
+	id, doc := b.coll.insertJob(name, params, delay)
+	b.bulk.Insert(doc)
+	return id
 }
 
 // Complete will queue the complete in the bulk operation.
@@ -71,16 +88,22 @@ func Wrap(coll *mgo.Collection) *Collection {
 	}
 }
 
-// Enqueue will immediately write the specified metrics to the collection.
-func (c *Collection) Enqueue(name string, params bson.M, delay time.Duration) error {
-	return c.coll.Insert(c.insertJob(name, params, delay))
+// Enqueue will enqueue a job using the specified name and params. If a delay
+// is specified the job will not dequeued until the specified time has passed.
+// If not error is returned the returned job id is valid.
+func (c *Collection) Enqueue(name string, params bson.M, delay time.Duration) (bson.ObjectId, error) {
+	id, doc := c.insertJob(name, params, delay)
+	return id, c.coll.Insert(doc)
 }
 
-func (c *Collection) insertJob(name string, params bson.M, delay time.Duration) bson.M {
-	return bson.M{
+func (c *Collection) insertJob(name string, params bson.M, delay time.Duration) (bson.ObjectId, bson.M) {
+	id := bson.NewObjectId()
+
+	return id, bson.M{
+		"_id":      id,
 		"name":     name,
 		"params":   params,
-		"status":   enqueued,
+		"status":   StatusEnqueued,
 		"attempts": 0,
 		"created":  time.Now(),
 		"delay":    time.Now().Add(delay),
@@ -111,14 +134,14 @@ func (c *Collection) Dequeue(names []string, timeout time.Duration) (*Job, error
 		"$or": []bson.M{
 			{
 				"status": bson.M{
-					"$in": []string{enqueued, failed},
+					"$in": []string{StatusEnqueued, StatusFailed},
 				},
 				"delay": bson.M{
 					"$lte": time.Now(),
 				},
 			},
 			{
-				"status": dequeued,
+				"status": StatusDequeued,
 				"started": bson.M{
 					"$lte": time.Now().Add(-timeout),
 				},
@@ -127,7 +150,7 @@ func (c *Collection) Dequeue(names []string, timeout time.Duration) (*Job, error
 	}).Sort("_id").Apply(mgo.Change{
 		Update: bson.M{
 			"$set": bson.M{
-				"status":  dequeued,
+				"status":  StatusDequeued,
 				"started": time.Now(),
 			},
 			"$inc": bson.M{
@@ -145,7 +168,13 @@ func (c *Collection) Dequeue(names []string, timeout time.Duration) (*Job, error
 	return &job, nil
 }
 
-// Complete will complete the specified job.
+// Fetch will load the job with the specified id.
+func (c *Collection) Fetch(id bson.ObjectId) (*Job, error) {
+	var job Job
+	return &job, c.coll.FindId(id).One(&job)
+}
+
+// Complete will complete the specified job and set the specified result.
 func (c *Collection) Complete(id bson.ObjectId, result bson.M) error {
 	return c.coll.UpdateId(id, c.completeJob(result))
 }
@@ -153,14 +182,15 @@ func (c *Collection) Complete(id bson.ObjectId, result bson.M) error {
 func (c *Collection) completeJob(result bson.M) bson.M {
 	return bson.M{
 		"$set": bson.M{
-			"status": completed,
+			"status": StatusCompleted,
 			"result": result,
 			"ended":  time.Now(),
 		},
 	}
 }
 
-// Fail will fail the specified job.
+// Fail will fail the specified job with the specified error. Delay can be set
+// enforce a delay until the job can be dequeued again.
 func (c *Collection) Fail(id bson.ObjectId, error string, delay time.Duration) error {
 	return c.coll.UpdateId(id, c.failJob(error, delay))
 }
@@ -168,7 +198,7 @@ func (c *Collection) Fail(id bson.ObjectId, error string, delay time.Duration) e
 func (c *Collection) failJob(error string, delay time.Duration) bson.M {
 	return bson.M{
 		"$set": bson.M{
-			"status": failed,
+			"status": StatusFailed,
 			"error":  error,
 			"ended":  time.Now(),
 			"delay":  time.Now().Add(delay),
@@ -176,7 +206,7 @@ func (c *Collection) failJob(error string, delay time.Duration) bson.M {
 	}
 }
 
-// Cancel will cancel the specified job.
+// Cancel will cancel the specified job with the specified reason.
 func (c *Collection) Cancel(id bson.ObjectId, reason string) error {
 	return c.coll.UpdateId(id, c.cancelJob(reason))
 }
@@ -184,7 +214,7 @@ func (c *Collection) Cancel(id bson.ObjectId, reason string) error {
 func (c *Collection) cancelJob(reason string) bson.M {
 	return bson.M{
 		"$set": bson.M{
-			"status": cancelled,
+			"status": StatusCancelled,
 			"reason": reason,
 			"ended":  time.Now(),
 		},

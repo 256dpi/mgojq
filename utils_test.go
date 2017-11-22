@@ -55,3 +55,11 @@ func replaceTimeMap(m bson.M) bson.M {
 
 	return m
 }
+
+func replaceTimeJob(j *Job) *Job {
+	if !j.Created.IsZero() {
+		j.Created = setTime
+	}
+
+	return j
+}
