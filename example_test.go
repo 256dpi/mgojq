@@ -46,8 +46,8 @@ func Example() {
 		panic(err)
 	}
 
-	fmt.Printf("%+v", job.Result["r"])
+	fmt.Printf("%s: %d\n", job.Status, job.Result["r"].(int))
 
 	// Output:
-	// 15
+	// completed: 15
 }
