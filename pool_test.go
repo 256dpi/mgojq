@@ -23,15 +23,42 @@ func TestPool(t *testing.T) {
 
 	pool.Start(jqc)
 
-	jqc.Enqueue("foo", nil, 0)
-	jqc.Enqueue("foo", nil, 0)
-	jqc.Enqueue("foo", nil, 0)
+	for i := 0; i < 3; i++ {
+		jqc.Enqueue("foo", nil, 0)
+	}
 
 	time.Sleep(10 * time.Millisecond)
 	pool.Close()
 	assert.NoError(t, pool.Wait())
 
 	assert.Equal(t, 3, counter)
+}
+
+func TestPoolParallel(t *testing.T) {
+	dbc := db.C("test-pool-parallel")
+	jqc := Wrap(dbc)
+
+	counter := 0
+
+	pool := NewPool(10, 0)
+	pool.Register("foo", func(c *Collection, j *Job, quit <-chan struct{}) error {
+		time.Sleep(10 * time.Millisecond)
+		counter++
+		c.Complete(j.ID, nil)
+		return nil
+	})
+
+	pool.Start(jqc)
+
+	for i := 0; i < 10; i++ {
+		jqc.Enqueue("foo", nil, 0)
+	}
+
+	time.Sleep(15 * time.Millisecond)
+	pool.Close()
+	assert.NoError(t, pool.Wait())
+
+	assert.Equal(t, 10, counter)
 }
 
 func TestPoolError(t *testing.T) {
