@@ -16,8 +16,6 @@ const (
 	cancelled = "cancelled"
 )
 
-// TODO: Dequeue lost jobs again after some time.
-
 // A Job as it is returned by Dequeue.
 type Job struct {
 	ID       bson.ObjectId `bson:"_id"`
@@ -97,7 +95,7 @@ func (c *Collection) Bulk() *Bulk {
 }
 
 // Dequeue will try to dequeue a job.
-func (c *Collection) Dequeue(names ...string) (*Job, error) {
+func (c *Collection) Dequeue(names []string, timeout time.Duration) (*Job, error) {
 	// check names
 	if len(names) == 0 {
 		panic("at least one job name is required")
@@ -108,11 +106,21 @@ func (c *Collection) Dequeue(names ...string) (*Job, error) {
 		"name": bson.M{
 			"$in": names,
 		},
-		"status": bson.M{
-			"$in": []string{enqueued, failed},
-		},
-		"delay": bson.M{
-			"$lte": time.Now(),
+		"$or": []bson.M{
+			{
+				"status": bson.M{
+					"$in": []string{enqueued, failed},
+				},
+				"delay": bson.M{
+					"$lte": time.Now(),
+				},
+			},
+			{
+				"status": dequeued,
+				"started": bson.M{
+					"$lte": time.Now().Add(-timeout),
+				},
+			},
 		},
 	}).Sort("_id").Apply(mgo.Change{
 		Update: bson.M{

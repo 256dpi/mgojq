@@ -13,11 +13,12 @@ type Worker func(c *Collection, j *Job, quit <-chan struct{}) error
 
 // Pool manages multiple goroutines that dequeue jobs.
 type Pool struct {
-	size    int
-	timeout time.Duration
-	workers map[string]Worker
-	names   []string
-	jobs    chan *Job
+	size     int
+	interval time.Duration
+	timeout  time.Duration
+	workers  map[string]Worker
+	names    []string
+	jobs     chan *Job
 
 	started bool
 	coll    *Collection
@@ -26,12 +27,13 @@ type Pool struct {
 }
 
 // NewPool will create a new pool.
-func NewPool(size int, timeout time.Duration) *Pool {
+func NewPool(size int, interval, timeout time.Duration) *Pool {
 	return &Pool{
+		interval: interval,
 		timeout: timeout,
-		size:    size,
-		workers: make(map[string]Worker),
-		jobs:    make(chan *Job),
+		size:     size,
+		workers:  make(map[string]Worker),
+		jobs:     make(chan *Job),
 	}
 }
 
@@ -91,7 +93,7 @@ func (p *Pool) dequeuer() error {
 	for {
 	dequeue:
 		// dequeue next job
-		job, err := p.coll.Dequeue(p.names...)
+		job, err := p.coll.Dequeue(p.names, p.timeout)
 		if err != nil {
 			return err
 		} else if job == nil {
@@ -109,7 +111,7 @@ func (p *Pool) dequeuer() error {
 		select {
 		case <-p.tomb.Dying():
 			return tomb.ErrDying
-		case <-time.After(p.timeout):
+		case <-time.After(p.interval):
 			goto dequeue
 		}
 	}

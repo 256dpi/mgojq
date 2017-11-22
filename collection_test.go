@@ -105,14 +105,14 @@ func TestCollectionDequeue(t *testing.T) {
 	err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
 	assert.NoError(t, err)
 
-	job, err := jqc.Dequeue("foo")
+	job, err := jqc.Dequeue([]string{"foo"}, time.Hour)
 	assert.NoError(t, err)
 	assert.True(t, job.ID.Valid())
 	assert.Equal(t, "foo", job.Name)
 	assert.Equal(t, bson.M{"bar": "baz"}, job.Params)
 	assert.Equal(t, 1, job.Attempts)
 
-	job, err = jqc.Dequeue("foo")
+	job, err = jqc.Dequeue([]string{"foo"}, time.Hour)
 	assert.NoError(t, err)
 	assert.Nil(t, job)
 }
@@ -124,22 +124,42 @@ func TestCollectionDequeueDelay(t *testing.T) {
 	err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 100*time.Millisecond)
 	assert.NoError(t, err)
 
-	job, err := jqc.Dequeue("foo")
+	job, err := jqc.Dequeue([]string{"foo"}, time.Hour)
 	assert.NoError(t, err)
 	assert.Nil(t, job)
 
 	time.Sleep(120 * time.Millisecond)
 
-	job, err = jqc.Dequeue("foo")
+	job, err = jqc.Dequeue([]string{"foo"}, time.Hour)
 	assert.NoError(t, err)
 	assert.True(t, job.ID.Valid())
 	assert.Equal(t, "foo", job.Name)
 	assert.Equal(t, bson.M{"bar": "baz"}, job.Params)
 	assert.Equal(t, 1, job.Attempts)
 
-	job, err = jqc.Dequeue("foo")
+	job, err = jqc.Dequeue([]string{"foo"}, time.Hour)
 	assert.NoError(t, err)
 	assert.Nil(t, job)
+}
+
+func TestCollectionDequeueTimeout(t *testing.T) {
+	dbc := db.C("test-coll-dequeue-timeout")
+	jqc := Wrap(dbc)
+
+	err := jqc.Enqueue("foo", nil, 0)
+	assert.NoError(t, err)
+
+	job, err := jqc.Dequeue([]string{"foo"}, 0)
+	assert.NoError(t, err)
+	assert.NotNil(t, job)
+
+	job, err = jqc.Dequeue([]string{"foo"}, 100 * time.Millisecond)
+	assert.NoError(t, err)
+	assert.Nil(t, job)
+
+	job, err = jqc.Dequeue([]string{"foo"}, 0)
+	assert.NoError(t, err)
+	assert.NotNil(t, job)
 }
 
 func TestCollectionDequeueOldFirst(t *testing.T) {
@@ -149,7 +169,7 @@ func TestCollectionDequeueOldFirst(t *testing.T) {
 	err := jqc.Enqueue("foo", bson.M{"first": true}, 0)
 	assert.NoError(t, err)
 
-	job, err := jqc.Dequeue("foo")
+	job, err := jqc.Dequeue([]string{"foo"}, time.Hour)
 	assert.NoError(t, err)
 	assert.NotNil(t, job)
 
@@ -159,15 +179,15 @@ func TestCollectionDequeueOldFirst(t *testing.T) {
 	err = jqc.Enqueue("foo", bson.M{"second": true}, 0)
 	assert.NoError(t, err)
 
-	job, err = jqc.Dequeue("foo")
+	job, err = jqc.Dequeue([]string{"foo"}, time.Hour)
 	assert.NoError(t, err)
 	assert.Equal(t, bson.M{"first": true}, job.Params)
 
-	job, err = jqc.Dequeue("foo")
+	job, err = jqc.Dequeue([]string{"foo"}, time.Hour)
 	assert.NoError(t, err)
 	assert.Equal(t, bson.M{"second": true}, job.Params)
 
-	job, err = jqc.Dequeue("foo")
+	job, err = jqc.Dequeue([]string{"foo"}, time.Hour)
 	assert.NoError(t, err)
 	assert.Nil(t, job)
 }
@@ -179,7 +199,7 @@ func TestCollectionDequeueFailed(t *testing.T) {
 	err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
 	assert.NoError(t, err)
 
-	job, err := jqc.Dequeue("foo")
+	job, err := jqc.Dequeue([]string{"foo"}, time.Hour)
 	assert.NoError(t, err)
 	assert.True(t, job.ID.Valid())
 	assert.Equal(t, "foo", job.Name)
@@ -189,7 +209,7 @@ func TestCollectionDequeueFailed(t *testing.T) {
 	err = jqc.Fail(job.ID, "some error", 0)
 	assert.NoError(t, err)
 
-	job2, err := jqc.Dequeue("foo")
+	job2, err := jqc.Dequeue([]string{"foo"}, time.Hour)
 	assert.NoError(t, err)
 	assert.Equal(t, job.ID, job2.ID)
 	assert.Equal(t, "foo", job2.Name)
@@ -204,7 +224,7 @@ func TestCollectionDequeueFailedDelay(t *testing.T) {
 	err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
 	assert.NoError(t, err)
 
-	job, err := jqc.Dequeue("foo")
+	job, err := jqc.Dequeue([]string{"foo"}, time.Hour)
 	assert.NoError(t, err)
 	assert.True(t, job.ID.Valid())
 	assert.Equal(t, "foo", job.Name)
@@ -214,13 +234,13 @@ func TestCollectionDequeueFailedDelay(t *testing.T) {
 	err = jqc.Fail(job.ID, "some error", 100*time.Millisecond)
 	assert.NoError(t, err)
 
-	job2, err := jqc.Dequeue("foo")
+	job2, err := jqc.Dequeue([]string{"foo"}, time.Hour)
 	assert.NoError(t, err)
 	assert.Nil(t, job2)
 
 	time.Sleep(120 * time.Millisecond)
 
-	job3, err := jqc.Dequeue("foo")
+	job3, err := jqc.Dequeue([]string{"foo"}, time.Hour)
 	assert.NoError(t, err)
 	assert.Equal(t, job.ID, job3.ID)
 	assert.Equal(t, "foo", job3.Name)
@@ -233,7 +253,7 @@ func TestCollectionDequeuePanic(t *testing.T) {
 	jqc := Wrap(dbc)
 
 	assert.Panics(t, func() {
-		jqc.Dequeue()
+		jqc.Dequeue(nil, 0)
 	})
 }
 
@@ -244,7 +264,7 @@ func TestCollectionComplete(t *testing.T) {
 	err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
 	assert.NoError(t, err)
 
-	job, err := jqc.Dequeue("foo")
+	job, err := jqc.Dequeue([]string{"foo"}, time.Hour)
 	assert.NoError(t, err)
 	assert.NotNil(t, job)
 
@@ -277,7 +297,7 @@ func TestCollectionFail(t *testing.T) {
 	err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
 	assert.NoError(t, err)
 
-	job, err := jqc.Dequeue("foo")
+	job, err := jqc.Dequeue([]string{"foo"}, time.Hour)
 	assert.NoError(t, err)
 	assert.NotNil(t, job)
 
@@ -308,7 +328,7 @@ func TestCollectionCancel(t *testing.T) {
 	err := jqc.Enqueue("foo", bson.M{"bar": "baz"}, 0)
 	assert.NoError(t, err)
 
-	job, err := jqc.Dequeue("foo")
+	job, err := jqc.Dequeue([]string{"foo"}, time.Hour)
 	assert.NoError(t, err)
 	assert.NotNil(t, job)
 

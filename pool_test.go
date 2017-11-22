@@ -14,7 +14,7 @@ func TestPool(t *testing.T) {
 
 	counter := 0
 
-	pool := NewPool(1, 0)
+	pool := NewPool(1, 0, time.Hour)
 	pool.Register("foo", func(c *Collection, j *Job, quit <-chan struct{}) error {
 		counter++
 		c.Complete(j.ID, nil)
@@ -40,7 +40,7 @@ func TestPoolParallel(t *testing.T) {
 
 	counter := 0
 
-	pool := NewPool(10, 0)
+	pool := NewPool(10, 0, time.Hour)
 	pool.Register("foo", func(c *Collection, j *Job, quit <-chan struct{}) error {
 		time.Sleep(10 * time.Millisecond)
 		counter++
@@ -67,7 +67,7 @@ func TestPoolWait(t *testing.T) {
 
 	counter := 0
 
-	pool := NewPool(1, 100*time.Millisecond)
+	pool := NewPool(1, 100*time.Millisecond, time.Hour)
 	pool.Register("foo", func(c *Collection, j *Job, quit <-chan struct{}) error {
 		counter++
 		c.Complete(j.ID, nil)
@@ -92,7 +92,7 @@ func TestPoolError(t *testing.T) {
 	dbc := db.C("test-pool-error")
 	jqc := Wrap(dbc)
 
-	pool := NewPool(1, 0)
+	pool := NewPool(1, 0, time.Hour)
 	pool.Register("foo", func(c *Collection, j *Job, quit <-chan struct{}) error {
 		return errors.New("some error")
 	})
@@ -108,7 +108,7 @@ func TestPoolStartError(t *testing.T) {
 	dbc := db.C("test-pool-start-error")
 	jqc := Wrap(dbc)
 
-	pool := NewPool(1, 0)
+	pool := NewPool(1, 0, time.Hour)
 	pool.Register("foo", func(c *Collection, j *Job, quit <-chan struct{}) error {
 		return nil
 	})
