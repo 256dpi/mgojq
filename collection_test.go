@@ -142,6 +142,36 @@ func TestCollectionDequeueDelay(t *testing.T) {
 	assert.Nil(t, job)
 }
 
+func TestCollectionDequeueOldFirst(t *testing.T) {
+	dbc := db.C("test-coll-dequeue-old-first")
+	jqc := Wrap(dbc)
+
+	err := jqc.Enqueue("foo", bson.M{"first": true}, 0)
+	assert.NoError(t, err)
+
+	job, err := jqc.Dequeue("foo")
+	assert.NoError(t, err)
+	assert.NotNil(t, job)
+
+	err = jqc.Fail(job.ID, "some error", 0)
+	assert.NoError(t, err)
+
+	err = jqc.Enqueue("foo", bson.M{"second": true}, 0)
+	assert.NoError(t, err)
+
+	job, err = jqc.Dequeue("foo")
+	assert.NoError(t, err)
+	assert.Equal(t, bson.M{"first": true}, job.Params)
+
+	job, err = jqc.Dequeue("foo")
+	assert.NoError(t, err)
+	assert.Equal(t, bson.M{"second": true}, job.Params)
+
+	job, err = jqc.Dequeue("foo")
+	assert.NoError(t, err)
+	assert.Nil(t, job)
+}
+
 func TestCollectionDequeueFailed(t *testing.T) {
 	dbc := db.C("test-coll-dequeue-failed")
 	jqc := Wrap(dbc)

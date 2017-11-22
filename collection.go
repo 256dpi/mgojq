@@ -16,11 +16,7 @@ const (
 	cancelled = "cancelled"
 )
 
-// TODO: Add priorities.
-
 // TODO: Dequeue lost jobs again after some time.
-
-// TODO: Dequeue old jobs first.
 
 // A Job as it is returned by Dequeue.
 type Job struct {
