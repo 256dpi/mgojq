@@ -76,3 +76,20 @@ func TestPoolError(t *testing.T) {
 
 	assert.Equal(t, "some error", pool.Wait().Error())
 }
+
+func TestPoolStartError(t *testing.T) {
+	dbc := db.C("test-pool-start-error")
+	jqc := Wrap(dbc)
+
+	pool := NewPool(1, 0)
+	pool.Register("foo", func(c *Collection, j *Job, quit <-chan struct{}) error {
+		return nil
+	})
+
+	pool.Start(jqc)
+	defer pool.Close()
+
+	assert.Panics(t, func() {
+		pool.Start(nil)
+	})
+}
