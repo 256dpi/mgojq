@@ -13,9 +13,8 @@ type Worker func(c *Collection, j *Job, quit <-chan struct{}) error
 
 // Pool manages multiple goroutines that dequeue jobs.
 type Pool struct {
-	Timeout time.Duration
-
 	size    int
+	timeout time.Duration
 	workers map[string]Worker
 	names   []string
 	jobs    chan *Job
@@ -27,10 +26,11 @@ type Pool struct {
 }
 
 // NewPool will create a new pool.
-func NewPool(size int) *Pool {
+func NewPool(size int, timeout time.Duration) *Pool {
 	return &Pool{
-		Timeout: 1 * time.Second,
+		timeout: timeout,
 		size:    size,
+		workers: make(map[string]Worker),
 		jobs:    make(chan *Job),
 	}
 }
@@ -46,8 +46,10 @@ func (p *Pool) Register(name string, worker Worker) {
 	p.workers[name] = worker
 }
 
-// Start will start the worker pool.
-func (p *Pool) Start(coll *Collection) {
+// Start will start the worker pool. The worker pool will dequeue and process
+// jobs until an error occurs. The returned channel will be closed when the pool
+// is shutting down either because of an error or Close has been called.
+func (p *Pool) Start(coll *Collection) <-chan struct{} {
 	// check flag
 	if p.started {
 		panic("pool can only be started once")
@@ -61,19 +63,24 @@ func (p *Pool) Start(coll *Collection) {
 
 	// run dequeuer
 	p.tomb.Go(p.dequeuer)
+
+	// return channel
+	return p.tomb.Dying()
 }
 
-// Close will wait for current jobs to finish, close the pool and return eventual
-// errors.
-func (p *Pool) Close() error {
+// Close will close the pool and initiate the shutdown procedure. The returned
+// channel will be closed when the pool has shut down.
+func (p *Pool) Close() <-chan struct{} {
 	// kill tomb
 	p.tomb.Kill(nil)
 
-	// wait for clean exit
-	return p.tomb.Wait()
+	return p.tomb.Dead()
 }
 
-// TODO: How to catch errors?
+// Wait will wait until the pool has shut down and will return the error.
+func (p *Pool) Wait() error {
+	return p.tomb.Wait()
+}
 
 func (p *Pool) dequeuer() error {
 	// run workers
@@ -102,7 +109,7 @@ func (p *Pool) dequeuer() error {
 		select {
 		case <-p.tomb.Dying():
 			return tomb.ErrDying
-		case <-time.After(p.Timeout):
+		case <-time.After(p.timeout):
 			goto dequeue
 		}
 	}
